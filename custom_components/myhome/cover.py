@@ -217,14 +217,16 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
         await self._gateway_handler.send(OWNAutomationCommand.stop_shutter(self._full_where))
 
     @callback
-    async def _async_stop_at_target(self, _now):
+    def _async_stop_at_target(self, _now):
         """Called when the cover should have reached target position."""
         self._cancel_timers()
-        await self._gateway_handler.send(OWNAutomationCommand.stop_shutter(self._full_where))
         if self._target_position is not None:
             self._attr_current_cover_position = self._target_position
         self._finish_movement()
         self.async_write_ha_state()
+        self._hass.async_create_task(
+            self._gateway_handler.send(OWNAutomationCommand.stop_shutter(self._full_where))
+        )
 
     def _start_movement(self, target_position: int):
         """Begin tracking a time-based movement."""
@@ -327,7 +329,7 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
             self._attr_is_opening = False
             self._attr_is_closing = True
         else:
-            # Stopped
+            # Stopped (either by user, physical button, or our scheduled stop)
             self._cancel_timers()
             if was_moving:
                 self._update_position_from_elapsed()
