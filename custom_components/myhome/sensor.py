@@ -24,8 +24,10 @@ from homeassistant.const import (
     UnitOfEnergy,
     UnitOfTemperature,
 )
+from homeassistant.core import callback
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.event import async_call_later
 from OWNd.message import (
     MESSAGE_TYPE_ACTIVE_POWER,
     MESSAGE_TYPE_CURRENT_DAY_CONSUMPTION,
@@ -245,16 +247,22 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
         self._attr_extra_state_attributes = {
             "Sensor": f"({self._where[0]}){self._where[1:]}"
         }
+        self._instant_power_refresh_cancel = None
+        self._instant_power_interval = 3
+        self._instant_power_duration = 120
 
     async def async_added_to_hass(self):
         """When entity is added to hass."""
         self._hass.data[DOMAIN][self._gateway_handler.mac][CONF_PLATFORMS][
             self._platform
         ][self._device_id][CONF_ENTITIES][self._attr_device_class] = self
-        await self.async_update()
+        await self._request_instant_power()
 
     async def async_will_remove_from_hass(self):
         """When entity is removed from hass."""
+        if self._instant_power_refresh_cancel is not None:
+            self._instant_power_refresh_cancel()
+            self._instant_power_refresh_cancel = None
         if (
             self._attr_device_class
             in self._hass.data[DOMAIN][self._gateway_handler.mac][CONF_PLATFORMS][
@@ -270,7 +278,7 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
 
         Only used by the generic entity update service.
         """
-        # await self.start_sending_instant_power(255)
+        await self._request_instant_power()
 
     def handle_event(self, message: OWNEnergyEvent):
         """Handle an event message."""
@@ -285,8 +293,30 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
         self._attr_native_value = message.active_power
         self.async_schedule_update_ha_state()
 
+    async def _request_instant_power(self):
+        """Request instant power updates and schedule re-request before expiry."""
+        if self._instant_power_refresh_cancel is not None:
+            self._instant_power_refresh_cancel()
+
+        await self._gateway_handler.send(
+            OWNEnergyCommand.start_sending_instant_power(
+                self._where, self._instant_power_duration, self._instant_power_interval
+            )
+        )
+
+        refresh_in = (self._instant_power_duration - 2) * 60
+
+        @callback
+        def _refresh(_now):
+            self._instant_power_refresh_cancel = None
+            self._hass.async_create_task(self._request_instant_power())
+
+        self._instant_power_refresh_cancel = async_call_later(
+            self._hass, refresh_in, _refresh
+        )
+
     async def start_sending_instant_power(self, duration):
-        """Request automatic instant power."""
+        """Request automatic instant power (called by service)."""
         await self._gateway_handler.send(
             OWNEnergyCommand.start_sending_instant_power(self._where, duration)
         )
