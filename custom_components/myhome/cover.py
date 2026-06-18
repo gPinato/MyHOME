@@ -161,6 +161,7 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
 
     async def async_open_cover(self, **kwargs):  # pylint: disable=unused-argument
         """Open the cover."""
+        LOGGER.debug("%s async_open_cover called", self._gateway_handler.log_id)
         if self._time_based:
             self._start_movement(target_position=100)
         await self._gateway_handler.send(OWNAutomationCommand.raise_shutter(self._full_where))
@@ -173,6 +174,7 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
 
     async def async_set_cover_position(self, **kwargs):
         """Move the cover to a specific position."""
+        LOGGER.debug("%s async_set_cover_position called with %s", self._gateway_handler.log_id, kwargs)
         if ATTR_POSITION not in kwargs:
             return
 
@@ -317,7 +319,7 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
         if self._time_based:
             self._handle_time_based_event(message)
         else:
-            if message.current_position is not None:
+            if message.current_position is not None and message.current_position <= 100:
                 self._attr_current_cover_position = message.current_position
             self._attr_is_opening = message.is_opening
             self._attr_is_closing = message.is_closing
