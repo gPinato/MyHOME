@@ -125,11 +125,17 @@ class MyHOMEGatewayHandler:
 
     @property
     def model(self) -> str:
-        return self.gateway.model_name
+        value = self.gateway.model_name
+        if isinstance(value, (list, tuple)):
+            return value[0] if value else None
+        return value
 
     @property
     def firmware(self) -> str:
-        return self.gateway.firmware
+        value = self.gateway.firmware
+        if isinstance(value, (list, tuple)):
+            return value[0] if value else None
+        return value
 
     async def test(self) -> Dict:
         return await OWNSession(gateway=self.gateway, logger=LOGGER).test_connection()
