@@ -204,6 +204,14 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
         else:
             travel_time = self._closing_time * travel_percentage / 100
 
+        LOGGER.debug(
+            "%s Scheduling stop in %.1fs (from %d%% to %d%%, travel %d%%)",
+            self._gateway_handler.log_id,
+            travel_time,
+            self._position_at_start,
+            position,
+            travel_percentage,
+        )
         self._stop_timer_cancel = async_call_later(
             self._hass, travel_time, self._async_stop_at_target
         )
@@ -219,6 +227,10 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
     @callback
     def _async_stop_at_target(self, _now):
         """Called when the cover should have reached target position."""
+        LOGGER.debug(
+            "%s Stop timer fired, sending stop command",
+            self._gateway_handler.log_id,
+        )
         self._cancel_timers()
         if self._target_position is not None:
             self._attr_current_cover_position = self._target_position
