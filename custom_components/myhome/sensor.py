@@ -248,31 +248,21 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
         self._attr_extra_state_attributes = {
             "Sensor": f"({self._where[0]}){self._where[1:]}"
         }
-        self._instant_power_refresh_cancel = None
-        self._instant_power_interval = 3
-        self._instant_power_duration = 120
+        self._power_poll_cancel = None
+        self._power_poll_interval = 5
 
     async def async_added_to_hass(self):
         """When entity is added to hass."""
         self._hass.data[DOMAIN][self._gateway_handler.mac][CONF_PLATFORMS][
             self._platform
         ][self._device_id][CONF_ENTITIES][self._attr_device_class] = self
-        try:
-            await self._request_instant_power()
-        except Exception:
-            LOGGER.warning(
-                "%s Failed to request instant power on startup, will retry",
-                self._gateway_handler.log_id,
-            )
-            self._instant_power_refresh_cancel = async_call_later(
-                self._hass, 30, lambda _: self._hass.async_create_task(self._request_instant_power())
-            )
+        self._schedule_power_poll()
 
     async def async_will_remove_from_hass(self):
         """When entity is removed from hass."""
-        if self._instant_power_refresh_cancel is not None:
-            self._instant_power_refresh_cancel()
-            self._instant_power_refresh_cancel = None
+        if self._power_poll_cancel is not None:
+            self._power_poll_cancel()
+            self._power_poll_cancel = None
         if (
             self._attr_device_class
             in self._hass.data[DOMAIN][self._gateway_handler.mac][CONF_PLATFORMS][
@@ -288,7 +278,7 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
 
         Only used by the generic entity update service.
         """
-        await self._request_instant_power()
+        await self._poll_power()
 
     def handle_event(self, message: OWNEnergyEvent):
         """Handle an event message."""
@@ -303,26 +293,24 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
         self._attr_native_value = message.active_power
         self.async_schedule_update_ha_state()
 
-    async def _request_instant_power(self):
-        """Request instant power updates and schedule re-request before expiry."""
-        if self._instant_power_refresh_cancel is not None:
-            self._instant_power_refresh_cancel()
-
-        await self._gateway_handler.send(
-            OWNEnergyCommand.start_sending_instant_power(
-                self._where, self._instant_power_duration, self._instant_power_interval
+    def _schedule_power_poll(self):
+        """Schedule periodic active power polling."""
+        @callback
+        def _poll_tick(_now):
+            self._power_poll_cancel = None
+            self._hass.async_create_task(self._poll_power())
+            self._power_poll_cancel = async_call_later(
+                self._hass, self._power_poll_interval, _poll_tick
             )
+
+        self._power_poll_cancel = async_call_later(
+            self._hass, self._power_poll_interval, _poll_tick
         )
 
-        refresh_in = (self._instant_power_duration - 2) * 60
-
-        @callback
-        def _refresh(_now):
-            self._instant_power_refresh_cancel = None
-            self._hass.async_create_task(self._request_instant_power())
-
-        self._instant_power_refresh_cancel = async_call_later(
-            self._hass, refresh_in, _refresh
+    async def _poll_power(self):
+        """Request a single active power reading."""
+        await self._gateway_handler.send_status_request(
+            OWNEnergyCommand.start_sending_instant_power(self._where, 1)
         )
 
     async def start_sending_instant_power(self, duration):
