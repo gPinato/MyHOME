@@ -66,6 +66,11 @@ _DOMAIN_MAP = {
     "homeassistant.components.climate": "climate",
 }
 
+class _StubRestoreEntity(_StubEntity):
+    async def async_get_last_state(self):
+        return None
+
+
 _ENTITY_CLASSES = {
     "homeassistant.components.button": {"ButtonEntity": _StubButtonEntity},
     "homeassistant.components.light": {"LightEntity": _StubLightEntity},
@@ -74,6 +79,7 @@ _ENTITY_CLASSES = {
     "homeassistant.components.binary_sensor": {"BinarySensorEntity": _StubBinarySensorEntity},
     "homeassistant.components.sensor": {"SensorEntity": _StubSensorEntity},
     "homeassistant.components.climate": {"ClimateEntity": _StubClimateEntity},
+    "homeassistant.helpers.restore_state": {"RestoreEntity": _StubRestoreEntity},
 }
 
 
@@ -85,6 +91,11 @@ def _make_ha_mock(fullname):
         if fullname == prefix or fullname.startswith(prefix + "."):
             mock.DOMAIN = domain
             break
+
+    if fullname == "homeassistant.components.cover":
+        mock.ATTR_POSITION = "position"
+        mock.CoverDeviceClass = MagicMock()
+        mock.CoverDeviceClass.SHUTTER = "shutter"
 
     # Set entity base classes as real classes (not MagicMock)
     if fullname in _ENTITY_CLASSES:
@@ -107,6 +118,12 @@ def _make_ha_mock(fullname):
 
     if fullname == "homeassistant.helpers.config_validation":
         mock.config_entry_only_config_schema = lambda d: None
+
+    if fullname == "homeassistant.helpers.event":
+        mock.async_call_later = MagicMock(return_value=MagicMock())
+
+    if fullname == "homeassistant.core":
+        mock.callback = lambda f: f
 
     return mock
 
