@@ -343,7 +343,16 @@ class MyHOMECover(MyHOMEEntity, RestoreEntity, CoverEntity):
             self._attr_is_opening = False
             self._attr_is_closing = True
         else:
-            # Stopped (either by user, physical button, or our scheduled stop)
+            # Stopped event. Ignore spurious stop echoes from the gateway
+            # that arrive within 1s of starting movement (the gateway sends
+            # stop+position as part of its initial response before actually moving).
+            if was_moving and (time.monotonic() - self._movement_start_time) < 1.0:
+                LOGGER.debug(
+                    "%s Ignoring spurious stop event (%.1fs after start)",
+                    self._gateway_handler.log_id,
+                    time.monotonic() - self._movement_start_time,
+                )
+                return
             self._cancel_timers()
             if was_moving:
                 self._update_position_from_elapsed()
