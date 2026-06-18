@@ -232,6 +232,34 @@ class TestSendingLoop:
         assert queued["is_status_request"] is True
 
 
+class TestManufacturerProperty:
+    """Tests that manufacturer is always returned as a string."""
+
+    @pytest.fixture
+    def gateway_handler(self):
+        return make_gateway_handler()
+
+    def test_manufacturer_string(self, gateway_handler):
+        """If OWNd returns a plain string, pass it through."""
+        gateway_handler.gateway.manufacturer = "BTicino S.p.A."
+        assert gateway_handler.manufacturer == "BTicino S.p.A."
+
+    def test_manufacturer_tuple(self, gateway_handler):
+        """If stored as a tuple (legacy bug), extract first element."""
+        gateway_handler.gateway.manufacturer = ("BTicino S.p.A.",)
+        assert gateway_handler.manufacturer == "BTicino S.p.A."
+
+    def test_manufacturer_list(self, gateway_handler):
+        """If stored as a list (legacy bug), extract first element."""
+        gateway_handler.gateway.manufacturer = ["BTicino S.p.A."]
+        assert gateway_handler.manufacturer == "BTicino S.p.A."
+
+    def test_manufacturer_empty_tuple(self, gateway_handler):
+        """If somehow an empty tuple, fall back to default."""
+        gateway_handler.gateway.manufacturer = ()
+        assert gateway_handler.manufacturer == "BTicino S.p.A."
+
+
 class TestStop:
     """Tests for the stop() method that cleanly shuts down workers."""
 
