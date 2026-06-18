@@ -95,20 +95,21 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 _power_devices_configured = True
 
                 ent_reg = er.async_get(hass)
+                _mac = config_entry.data[CONF_MAC]
+                _old_unique_id = f"{_mac}-{_sensor}"
+                _new_unique_id = f"{_mac}-{_sensor}-{SensorDeviceClass.POWER}"
                 existing_entity_id = ent_reg.async_get_entity_id(
-                    "sensor", DOMAIN, _sensor
+                    "sensor", DOMAIN, _old_unique_id
                 )
                 if existing_entity_id is not None:
                     LOGGER.warning(
-                        "Sensor %s: %s will be migrated to %s-%s",
-                        _sensor,
-                        existing_entity_id,
-                        _sensor,
-                        SensorDeviceClass.POWER,
+                        "Migrating sensor unique_id from %s to %s",
+                        _old_unique_id,
+                        _new_unique_id,
                     )
                     ent_reg.async_update_entity(
                         entity_id=existing_entity_id,
-                        new_unique_id=f"{_sensor}-{SensorDeviceClass.POWER}",
+                        new_unique_id=_new_unique_id,
                     )
 
                 _sensors.append(
@@ -256,7 +257,16 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
         self._hass.data[DOMAIN][self._gateway_handler.mac][CONF_PLATFORMS][
             self._platform
         ][self._device_id][CONF_ENTITIES][self._attr_device_class] = self
-        await self._request_instant_power()
+        try:
+            await self._request_instant_power()
+        except Exception:
+            LOGGER.warning(
+                "%s Failed to request instant power on startup, will retry",
+                self._gateway_handler.log_id,
+            )
+            self._instant_power_refresh_cancel = async_call_later(
+                self._hass, 30, lambda _: self._hass.async_create_task(self._request_instant_power())
+            )
 
     async def async_will_remove_from_hass(self):
         """When entity is removed from hass."""
