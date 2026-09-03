@@ -285,7 +285,7 @@ class MyHOMEPowerSensor(MyHOMEEntity, SensorEntity):
         if message.message_type not in [MESSAGE_TYPE_ACTIVE_POWER]:
             return True
 
-        LOGGER.info(
+        LOGGER.debug(
             "%s %s",
             self._gateway_handler.log_id,
             message.human_readable_log,
@@ -420,7 +420,7 @@ class MyHOMEEnergySensor(MyHOMEEntity, SensorEntity):
             self._entity_specific_id == "total-energy"
             and message.message_type == MESSAGE_TYPE_ENERGY_TOTALIZER
         ):
-            LOGGER.info(
+            LOGGER.debug(
                 "%s %s",
                 self._gateway_handler.log_id,
                 message.human_readable_log,
@@ -430,7 +430,7 @@ class MyHOMEEnergySensor(MyHOMEEntity, SensorEntity):
             self._entity_specific_id == "monthly-energy"
             and message.message_type == MESSAGE_TYPE_CURRENT_MONTH_CONSUMPTION
         ):
-            LOGGER.info(
+            LOGGER.debug(
                 "%s %s",
                 self._gateway_handler.log_id,
                 message.human_readable_log,
@@ -440,7 +440,7 @@ class MyHOMEEnergySensor(MyHOMEEntity, SensorEntity):
             self._entity_specific_id == "daily-energy"
             and message.message_type == MESSAGE_TYPE_CURRENT_DAY_CONSUMPTION
         ):
-            LOGGER.info(
+            LOGGER.debug(
                 "%s %s",
                 self._gateway_handler.log_id,
                 message.human_readable_log,
@@ -526,7 +526,7 @@ class MyHOMETemperatureSensor(MyHOMEEntity, SensorEntity):
             return True
 
         if message.message_type == MESSAGE_TYPE_MAIN_TEMPERATURE:
-            LOGGER.info(
+            LOGGER.debug(
                 "%s %s",
                 self._gateway_handler.log_id,
                 message.human_readable_log,
@@ -534,7 +534,7 @@ class MyHOMETemperatureSensor(MyHOMEEntity, SensorEntity):
             self._attr_native_value = message.main_temperature
             self.async_schedule_update_ha_state()
         elif message.message_type == MESSAGE_TYPE_SECONDARY_TEMPERATURE:
-            LOGGER.info(
+            LOGGER.debug(
                 "%s %s",
                 self._gateway_handler.log_id,
                 message.human_readable_log,
@@ -616,7 +616,7 @@ class MyHOMEIlluminanceSensor(MyHOMEEntity, SensorEntity):
         if message.message_type not in [MESSAGE_TYPE_ILLUMINANCE]:
             return True
 
-        LOGGER.info(
+        LOGGER.debug(
             "%s %s",
             self._gateway_handler.log_id,
             message.human_readable_log,
